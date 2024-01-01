@@ -416,6 +416,21 @@ def DIAMOnD(G_original, seed_genes, max_number_of_added_nodes, alpha, outfile=No
     return added_nodes
 
 
+def diamond(*args):
+    network_edgelist_file, seeds_file, max_number_of_added_nodes, alpha, outfile_name = check_input_style(args)
+
+    # read the network and the seed genes:
+    G_original, seed_genes = read_input(network_edgelist_file, seeds_file)
+
+    # run DIAMOnD
+    added_nodes = DIAMOnD(G_original,
+                          seed_genes,
+                          max_number_of_added_nodes, alpha,
+                          outfile=outfile_name)
+
+    print("\n results have been saved to '%s' \n" % outfile_name)
+
+
 # ===========================================================================
 #
 # "Hey Ho, Let's go!" -- The Ramones (1976)

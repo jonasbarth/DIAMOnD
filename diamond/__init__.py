@@ -1,0 +1,1 @@
+from .DIAMOnD import diamond
