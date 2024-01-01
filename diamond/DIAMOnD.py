@@ -418,7 +418,7 @@ def DIAMOnD(G_original, seed_genes, max_number_of_added_nodes, alpha, outfile=No
 
 def diamond(*args):
     # add dummy element at the front
-    args = [0] + args
+    args = [0] + list(args)
     network_edgelist_file, seeds_file, max_number_of_added_nodes, alpha, outfile_name = check_input_style(args)
 
     # read the network and the seed genes:
