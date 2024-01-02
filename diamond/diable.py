@@ -2,6 +2,7 @@
 from typing import Sequence
 
 import networkx as nx
+import pandas as pd
 
 from .DIAMOnD import read_input, diamond_iteration_of_first_X_nodes, get_neighbors_and_degrees, compute_all_gamma_ln, \
     reduce_not_in_cluster_nodes, pvalue
@@ -44,11 +45,10 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int):
     universe = create_diable_universe(G_original, disease_genes)
 
     while len(added_genes) < num_genes_to_add:
-        new_node = diamond_iteration(universe, disease_genes, 1, 1)
+        new_gene, *_, p_value = diamond_iteration(universe, disease_genes, 1, 1)
 
-        new_gene = new_node[0][0]
         disease_genes.add(new_gene)
-        added_genes += new_node
+        added_genes.append(new_gene)
 
         universe = create_diable_universe(G_original, disease_genes)
         print(f"Universe size: {len(universe)}")
@@ -118,32 +118,22 @@ def diamond_iteration(universe, seed_genes, X, alpha):
       * kb   : number of +1 neighbors
       * p    : p-value at agglomeration
     """
-
-    N = universe.number_of_nodes()
-
-    added_nodes = []
-
-    # ------------------------------------------------------------------
-    # Setting up dictionaries with all neighbor lists
-    # and all degrees
-    # ------------------------------------------------------------------
-    neighbors, all_degrees = get_neighbors_and_degrees(universe)
+    size_universe = universe.number_of_nodes()
 
     # ------------------------------------------------------------------
     # Setting up initial set of nodes in cluster
     # ------------------------------------------------------------------
 
     cluster_nodes = set(seed_genes)
-    not_in_cluster = set()
     s0 = len(cluster_nodes)
 
     s0 += (alpha - 1) * s0
-    N += (alpha - 1) * s0
+    size_universe += (alpha - 1) * s0
 
     # ------------------------------------------------------------------
     # precompute the logarithmic gamma functions
     # ------------------------------------------------------------------
-    gamma_ln = compute_all_gamma_ln(N + 1)
+    gamma_ln = compute_all_gamma_ln(size_universe + 1)
 
     # ------------------------------------------------------------------
     # Setting initial set of nodes not in cluster
@@ -155,62 +145,14 @@ def diamond_iteration(universe, seed_genes, X, alpha):
     # M A I N     L O O P
     #
     # ------------------------------------------------------------------
+    info = []
+    for node in not_in_cluster:
+        degree = nx.degree(universe, node)
+        num_links_to_seed_genes = len(set(nx.neighbors(universe, node)) & set(seed_genes))
+        p = pvalue(num_links_to_seed_genes, degree, size_universe, s0, gamma_ln)
 
-    all_p = {}
+        info.append([node, degree, num_links_to_seed_genes, p])
 
-    while len(added_nodes) < X:
-
-        # ------------------------------------------------------------------
-        #
-        # Going through all nodes that are not in the cluster yet and
-        # record k, kb and p
-        #
-        # ------------------------------------------------------------------
-
-        info = {}
-
-        pmin = 10
-        next_node = 'nix'
-
-        # for DiaBLE, I want to make the universe:
-        #   seed genes + candidate genes (=> 1 link to seed genes) + candidate gene neighbours
-        # the nodes to considered to be added to the seeed genes are just the candidate genes + their neighbours
-        reduced_not_in_cluster = reduce_not_in_cluster_nodes(all_degrees,
-                                                             neighbors, universe,
-                                                             not_in_cluster,
-                                                             cluster_nodes, alpha)
-
-        # go through the entire universe, calculate p-values of each node not already in interesting genes
-        # and finally add the node with the lowest p-value to the set of interesting genes
-        for node, kbk in reduced_not_in_cluster.items():
-            # Getting the p-value of this kb,k
-            # combination and save it in all_p, so computing it only once!
-            kb, k = kbk
-            try:
-                p = all_p[(k, kb, s0)]
-            except KeyError:
-                p = pvalue(kb, k, N, s0, gamma_ln)
-                all_p[(k, kb, s0)] = p
-
-            # recording the node with smallest p-value
-            if p < pmin:
-                pmin = p
-                next_node = node
-
-            info[node] = (k, kb, p)
-
-        # ---------------------------------------------------------------------
-        # Adding node with smallest p-value to the list of aaglomerated nodes
-        # ---------------------------------------------------------------------
-        added_nodes.append((next_node,
-                            info[next_node][0],
-                            info[next_node][1],
-                            info[next_node][2]))
-
-        # Updating the list of cluster nodes and s0
-        cluster_nodes.add(next_node)
-        s0 = len(cluster_nodes)
-        not_in_cluster |= (neighbors[next_node] - cluster_nodes)
-        not_in_cluster.remove(next_node)
-
-    return added_nodes
+    candidate_genes = pd.DataFrame(info, columns=['node', 'degree', 'num_links_to_seed_genes', 'p_value'])
+    candidate_genes.sort_values("p_value", ascending=True, inplace=True)
+    return (*candidate_genes.head(1).iloc[0].tolist(),)

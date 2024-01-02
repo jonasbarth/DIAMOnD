@@ -6,6 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=['numpy',
                       'scipy',
+                      'pandas',
                       'networkx'],
     entry_points={
             'console_scripts': [
