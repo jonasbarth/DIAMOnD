@@ -1,5 +1,6 @@
 numpy
 networkx
 scipy
+tqdm
 pandas
 pytest

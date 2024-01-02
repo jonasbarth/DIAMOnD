@@ -7,6 +7,7 @@ setup(
     install_requires=['numpy',
                       'scipy',
                       'pandas',
+                      'tqdm',
                       'networkx'],
     entry_points={
             'console_scripts': [

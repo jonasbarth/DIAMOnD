@@ -3,12 +3,13 @@ from typing import Sequence
 
 import networkx as nx
 import pandas as pd
+from tqdm import tqdm
 
-from .DIAMOnD import read_input, diamond_iteration_of_first_X_nodes, get_neighbors_and_degrees, compute_all_gamma_ln, \
-    reduce_not_in_cluster_nodes, pvalue
+from .DIAMOnD import read_input, compute_all_gamma_ln, \
+    pvalue
 
 
-def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int):
+def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwargs):
     """Runs the DiaBLE algorithm on the provided network and seed genes.
 
     The DiaBLE algorithm is an iterative variant of DIAMOnD which considers a growing gene universe instead of
@@ -44,14 +45,16 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int):
 
     universe = create_diable_universe(G_original, disease_genes)
 
-    while len(added_genes) < num_genes_to_add:
+    added_genes = []
+    for _ in tqdm(range(num_genes_to_add), disable=not kwargs.get("verbose", False)):
         new_gene, *_, p_value = diamond_iteration(universe, disease_genes, 1, 1)
 
         disease_genes.add(new_gene)
-        added_genes.append(new_gene)
+        added_genes.append([new_gene, p_value])
 
         universe = create_diable_universe(G_original, disease_genes)
-        print(f"Universe size: {len(universe)}")
+
+    return pd.DataFrame(added_genes, columns=['gene', "p_value"])
 
 def find_nodes_with_links_to(graph: nx.Graph, nodes: Sequence[int]):
     """Finds all nodes in the graph that are directly linked to the given nodes.
@@ -138,7 +141,7 @@ def diamond_iteration(universe, seed_genes, X, alpha):
     # ------------------------------------------------------------------
     # Setting initial set of nodes not in cluster
     # ------------------------------------------------------------------
-    not_in_cluster = nx.Graph(universe.edges() - cluster_nodes).nodes()
+    not_in_cluster = universe.subgraph(universe.nodes() - cluster_nodes)
 
     # ------------------------------------------------------------------
     #
