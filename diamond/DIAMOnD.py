@@ -27,7 +27,7 @@ import scipy.stats
 from collections import defaultdict
 import csv
 import sys
-
+import pandas as pd
 
 # =============================================================================
 def print_usage():
