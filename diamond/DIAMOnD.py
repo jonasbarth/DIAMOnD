@@ -27,7 +27,7 @@ import scipy.stats
 from collections import defaultdict
 import csv
 import sys
-
+import pandas as pd
 
 # =============================================================================
 def print_usage():
@@ -85,6 +85,7 @@ def check_input_style(input_list):
     return network_edgelist_file, seeds_file, max_number_of_added_nodes, alpha, outfile_name
 
 
+
 # =============================================================================
 def read_input(network_file, seed_file):
     """
@@ -97,6 +98,19 @@ def read_input(network_file, seed_file):
     be used only.
     * Lines that start with '#' will be ignored in both cases
     """
+    if isinstance(network_file, pd.DataFrame):
+        if isinstance(seed_file, pd.DataFrame):          
+            G = nx.Graph()
+            for i, row in network_file.iterrows():
+                node1 = row['gene1']
+                node2 = row['gene2']
+                G.add_edge(node1, node2)
+        
+            # read the seed genes:
+            seed_genes = set(seed_file['gene'])
+        
+            return G, seed_genes
+
 
     sniffer = csv.Sniffer()
     line_delimiter = None
