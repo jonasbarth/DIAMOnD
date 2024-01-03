@@ -9,6 +9,30 @@ from .DIAMOnD import read_input, compute_all_gamma_ln, \
     pvalue
 
 
+def diamond2(network_file: str, seed_genes_file: str, num_genes_to_add: int):
+    G_original, seed_genes = read_input(network_file, seed_genes_file)
+
+    # 1. throwing away the seed genes that are not in the network
+    all_genes_in_network = set(G_original.nodes())
+    seed_genes = set(seed_genes)
+    disease_genes = seed_genes & all_genes_in_network
+
+    if len(disease_genes) != len(seed_genes):
+        print("DIAMOnD(): ignoring %s of %s seed genes that are not in the network" % (
+            len(seed_genes - all_genes_in_network), len(seed_genes)))
+
+    added_genes = []
+
+    for i in range(num_genes_to_add):
+        gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(G_original, disease_genes)
+        added_genes.append([gene, degree, num_links_to_seed_genes, p_value])
+
+        disease_genes.add(gene)
+
+    candidate_genes = pd.DataFrame(added_genes, columns=['node', 'degree', 'num_links_to_seed_genes', 'p_value'])
+    return candidate_genes
+
+
 def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwargs):
     """Runs the DiaBLE algorithm on the provided network and seed genes.
 
@@ -45,7 +69,7 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
 
     added_genes = []
     for _ in tqdm(range(num_genes_to_add), disable=not kwargs.get("verbose", False)):
-        new_gene, *_, p_value = diamond_iteration(universe, disease_genes, 1, 1)
+        new_gene, *_, p_value = diamond_iteration(universe, disease_genes)
 
         disease_genes.add(new_gene)
         added_genes.append([new_gene, p_value])
@@ -98,7 +122,9 @@ def create_diable_universe(network: nx.Graph, seed_genes: Sequence[int]):
     # find the neighbours of the neighbours of the disease genes
     seed_neighbours_neighbours = network.subgraph(find_nodes_with_links_to(network, seed_neighbours.nodes()))
 
-    return nx.compose(nx.compose(G_universe, seed_neighbours), seed_neighbours_neighbours)
+    return network.subgraph(list(G_universe.nodes()) +
+                            list(seed_neighbours.nodes()) +
+                            list(seed_neighbours_neighbours.nodes()))
 
 
 def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
