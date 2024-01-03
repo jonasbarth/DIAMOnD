@@ -28,7 +28,7 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
         num_genes_to_add (int): the number of genes to add to the network.
 
     Return:
-        None
+        (pd.DataFrame): a pandas dataframe with all the DiaBLE genes and their p-values.
     """
     G_original, seed_genes = read_input(network_file, seed_genes_file)
 
@@ -40,8 +40,6 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
     if len(disease_genes) != len(seed_genes):
         print("DIAMOnD(): ignoring %s of %s seed genes that are not in the network" % (
             len(seed_genes - all_genes_in_network), len(seed_genes)))
-
-    added_genes = []
 
     universe = create_diable_universe(G_original, disease_genes)
 
@@ -55,6 +53,7 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
         universe = create_diable_universe(G_original, disease_genes)
 
     return pd.DataFrame(added_genes, columns=['gene', "p_value"])
+
 
 def find_nodes_with_links_to(graph: nx.Graph, nodes: Sequence[int]):
     """Finds all nodes in the graph that are directly linked to the given nodes.
@@ -102,31 +101,30 @@ def create_diable_universe(network: nx.Graph, seed_genes: Sequence[int]):
     return nx.compose(nx.compose(G_universe, seed_neighbours), seed_neighbours_neighbours)
 
 
-def diamond_iteration(universe, seed_genes, X, alpha):
-    """
-    Parameters:
-    ----------
-    - G:     graph
-    - S:     seeds
-    - X:     the number of iterations, i.e only the first X gened will be
-             pulled in
-    - alpha: seeds weight
-    Returns:
-    --------
+def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
+    """Runs a single iteration of the DIAMOnD algorithm.
 
-    - added_nodes: ordered list of nodes in the order by which they
-      are agglomerated. Each entry has 4 info:
-      * name : dito
-      * k    : degree of the node
-      * kb   : number of +1 neighbors
-      * p    : p-value at agglomeration
+    In the DIAMOnD algorithm, we aim to find genes likely responsible for a disease. A gene that might be connected is
+    one that has links to already known disease genes (seed genes). At each iteration in the algorithm, we find the most
+    likely responsible gene by running a hypergeometric test for each gene in the universe that does not already exist
+    in the seed genes. The new candidate gene that will be added to the seed genes after the iteration is the one with
+    the lowest p-value.
+
+    Args:
+        universe (nx.Graph): the universe of genes and their interactions to consider. Should contain all the seed genes
+        and other genes.
+        seed_genes (Sequence[int]): the seed genes responsible for the disease.
+        alpha (float): the edge weighting factor.
+
+    Return:
+        node, degree, num_links_to_seed_genes, p_value (str, int, int, float): the candidate node with the lowest p-value,
+        its degree, number of links to seed genes, and p-value.
     """
     size_universe = universe.number_of_nodes()
 
     # ------------------------------------------------------------------
     # Setting up initial set of nodes in cluster
     # ------------------------------------------------------------------
-
     cluster_nodes = set(seed_genes)
     s0 = len(cluster_nodes)
 
@@ -143,12 +141,8 @@ def diamond_iteration(universe, seed_genes, X, alpha):
     # ------------------------------------------------------------------
     not_in_cluster = universe.subgraph(universe.nodes() - cluster_nodes)
 
-    # ------------------------------------------------------------------
-    #
-    # M A I N     L O O P
-    #
-    # ------------------------------------------------------------------
     info = []
+
     for node in not_in_cluster:
         degree = nx.degree(universe, node)
         num_links_to_seed_genes = len(set(nx.neighbors(universe, node)) & set(seed_genes))
@@ -156,6 +150,8 @@ def diamond_iteration(universe, seed_genes, X, alpha):
 
         info.append([node, degree, num_links_to_seed_genes, p])
 
+    # find the most likely candidate gene
     candidate_genes = pd.DataFrame(info, columns=['node', 'degree', 'num_links_to_seed_genes', 'p_value'])
     candidate_genes.sort_values("p_value", ascending=True, inplace=True)
+
     return (*candidate_genes.head(1).iloc[0].tolist(),)
