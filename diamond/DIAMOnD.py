@@ -449,6 +449,7 @@ def diamond(*args):
                           outfile=outfile_name)
 
     print("\n results have been saved to '%s' \n" % outfile_name)
+    return pd.DataFrame(added_nodes, columns=["gene", "degree", "num_links_to_seed_genes", "p_value"])
 
 
 # ===========================================================================
