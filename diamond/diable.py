@@ -1,5 +1,5 @@
 """Module containing code for the DIAMOnD Background Local Expansion (DiaBLE) algorithm."""
-from typing import Sequence
+from typing import Sequence, Union
 
 import networkx as nx
 import pandas as pd
@@ -33,7 +33,7 @@ def diamond2(network_file: str, seed_genes_file: str, num_genes_to_add: int):
     return candidate_genes
 
 
-def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwargs):
+def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, pd.DataFrame], num_genes_to_add: int, **kwargs):
     """Runs the DiaBLE algorithm on the provided network and seed genes.
 
     The DiaBLE algorithm is an iterative variant of DIAMOnD which considers a growing gene universe instead of
@@ -47,14 +47,31 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
     adding the gene with the lowest p-value to the set of seed genes.
 
     Args:
-        network_file (str): path to the network file, containing an edge list of nodes.
-        seed_genes_file (str): path to the seed genes file, containing a list of seed genes.
+        network_file (Union[str, pd.DataFrame]): path to the network file or a pandas DataFrame, containing an edge list
+         of nodes.
+        seed_genes_file (Union[str, pd.DataFrame]): path to the seed genes file or a pandas DataFrame, containing a list
+        of seed genes.
         num_genes_to_add (int): the number of genes to add to the network.
 
     Return:
         (pd.DataFrame): a pandas dataframe with all the DiaBLE genes and their p-values.
     """
-    G_original, seed_genes = read_input(network_file, seed_genes_file)
+    if type(network_file) is not type(seed_genes_file):
+        raise TypeError(f"Both the network and seed must be of the same type. Network: {type(network_file)}, Seed: {type(seed_genes_file)}.")
+
+    if isinstance(network_file, pd.DataFrame):
+        # ensure that genes are read as strings because when reading from .csv they are read as strings by default
+        network_file.iloc[:, 0] = network_file.iloc[:, 0].astype(str)
+        network_file.iloc[:, 1] = network_file.iloc[:, 1].astype(str)
+
+        G_original = nx.Graph()
+        G_original.add_edges_from(zip(network_file.iloc[:, 0], network_file.iloc[:, 1]))
+
+    if isinstance(seed_genes_file, pd.DataFrame):
+        seed_genes = set(map(str, seed_genes_file.iloc[:, 0]))
+
+    else:
+        G_original, seed_genes = read_input(network_file, seed_genes_file)
 
     # 1. throwing away the seed genes that are not in the network
     all_genes_in_network = set(G_original.nodes())
@@ -76,7 +93,10 @@ def diable(network_file: str, seed_genes_file: str, num_genes_to_add: int, **kwa
 
         universe = create_diable_universe(G_original, disease_genes)
 
-    return pd.DataFrame(added_genes, columns=['gene', "p_value"])
+    added_genes = pd.DataFrame(added_genes, columns=['gene', "p_value"])
+    added_genes.gene = added_genes.gene.astype(str)
+
+    return added_genes
 
 
 def find_nodes_with_links_to(graph: nx.Graph, nodes: Sequence[int]):
