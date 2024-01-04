@@ -19,15 +19,16 @@
 # -----------------------------------------------------------------------
 """
 
-import time
-import networkx as nx
-import numpy as np
-import copy
-import scipy.stats
-from collections import defaultdict
 import csv
 import sys
+from collections import defaultdict
+from functools import lru_cache
+
+import networkx as nx
+import numpy as np
 import pandas as pd
+import scipy.stats
+
 
 # =============================================================================
 def print_usage():
@@ -98,20 +99,6 @@ def read_input(network_file, seed_file):
     be used only.
     * Lines that start with '#' will be ignored in both cases
     """
-    if isinstance(network_file, pd.DataFrame):
-        if isinstance(seed_file, pd.DataFrame):          
-            G = nx.Graph()
-            for i, row in network_file.iterrows():
-                node1 = row['gene1']
-                node2 = row['gene2']
-                G.add_edge(node1, node2)
-        
-            # read the seed genes:
-            seed_genes = set(seed_file['gene'])
-        
-            return G, seed_genes
-
-
     sniffer = csv.Sniffer()
     line_delimiter = None
     for line in open(network_file, 'r'):
@@ -435,8 +422,25 @@ def diamond(*args):
     inputs = [0] + list(args)
     network_edgelist_file, seeds_file, max_number_of_added_nodes, alpha, outfile_name = check_input_style(inputs)
 
-    # read the network and the seed genes:
-    G_original, seed_genes = read_input(network_edgelist_file, seeds_file)
+    if type(network_edgelist_file) is not type(seeds_file):
+        raise TypeError(f"Both the network and seed must be of the same type. Network: {type(network_edgelist_file)}, "
+                        f"Seed: {type(seeds_file)}.")
+
+    if isinstance(network_edgelist_file, pd.DataFrame):
+        if isinstance(seeds_file, pd.DataFrame):
+            G = nx.Graph()
+            for i, row in network_edgelist_file.iterrows():
+                node1 = row['gene1']
+                node2 = row['gene2']
+                G.add_edge(node1, node2)
+
+            # read the seed genes:
+            seed_genes = set(seeds_file['gene'])
+
+
+    else:
+        # read the network and the seed genes:
+        G_original, seed_genes = read_input(network_edgelist_file, seeds_file)
 
     # run DIAMOnD
     added_nodes = DIAMOnD(G_original,
