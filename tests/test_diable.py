@@ -73,3 +73,26 @@ def test_that_diable_output_correct_dataframe():
     assert len(diable_result) == 1
     assert candidate_gene == "5"
     assert np.isclose(p_value, 0.6)
+
+
+def test_diable_with_slide_example():
+    network_file = "slide_graph_universe.txt"
+    seed_file = "slide_graph_seed_genes.txt"
+
+    diable_result = diable(network_file, seed_file, 1)
+    candidate_gene, p_value = (*diable_result.iloc[0],)
+
+    assert len(diable_result) == 1
+    assert candidate_gene == "7"
+    assert np.isclose(p_value, 0.047, rtol=0.001)
+
+
+def test_diable_with_more_iterations():
+    network_file = "slide_graph_universe.txt"
+    seed_file = "slide_graph_seed_genes.txt"
+
+    diable_result = diable(network_file, seed_file, 2)
+
+    assert len(diable_result) == 2
+    assert diable_result.gene.tolist() == ["7", "8"]
+    assert np.isclose(diable_result.p_value.tolist(), [0.044, 0.17], atol=0.005).all()
