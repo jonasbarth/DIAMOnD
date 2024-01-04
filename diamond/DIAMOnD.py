@@ -344,7 +344,7 @@ def diamond_iteration_of_first_X_nodes(G, S, X, alpha):
             try:
                 p = all_p[(k, kb, s0)]
             except KeyError:
-                p = scipy.stats.hypergeom(N, s0, k).pmf(kb)
+                p = 1 - scipy.stats.hypergeom(N, s0, k).pmf(kb - 1)
                 all_p[(k, kb, s0)] = p
 
             # recording the node with smallest p-value
