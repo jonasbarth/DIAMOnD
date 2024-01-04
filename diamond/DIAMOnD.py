@@ -147,11 +147,11 @@ def compute_all_gamma_ln(N):
     """
     precomputes all logarithmic gammas
     """
-    gamma_ln = {}
+    gamma_ln = np.zeros(N + 1)
     for i in range(1, N + 1):
         gamma_ln[i] = scipy.special.gammaln(i)
 
-    return gamma_ln
+    return tuple(gamma_ln)
 
 
 # =============================================================================
@@ -172,6 +172,7 @@ def gauss_hypergeom(x, r, b, n, gamma_ln):
 
 
 # =============================================================================
+@lru_cache(maxsize=None)
 def pvalue(kb, k, N, s, gamma_ln):
     """
     -------------------------------------------------------------------
@@ -212,32 +213,34 @@ def get_neighbors_and_degrees(G):
 # =============================================================================
 def reduce_not_in_cluster_nodes(all_degrees, neighbors, G, not_in_cluster, cluster_nodes, alpha):
     reduced_not_in_cluster = {}
-    kb2k = defaultdict(dict)
+    num_links_to_seed_genes_to_gene = defaultdict(dict)
+
+    # for each node, find the number of links to seed genes
     for node in not_in_cluster:
 
-        k = all_degrees[node]
-        kb = 0
+        degree = nx.degree(G, node)
+        num_links_to_seed_genes = 0
         # Going through all neighbors and counting the number of module neighbors
-        for neighbor in neighbors[node]:
+        for neighbor in nx.neighbors(G, node):
             if neighbor in cluster_nodes:
-                kb += 1
+                num_links_to_seed_genes += 1
 
         # adding wights to the the edges connected to seeds
-        k += (alpha - 1) * kb
-        kb += (alpha - 1) * kb
-        kb2k[kb][k] = node
+        degree += (alpha - 1) * num_links_to_seed_genes
+        num_links_to_seed_genes += (alpha - 1) * num_links_to_seed_genes
+        num_links_to_seed_genes_to_gene[num_links_to_seed_genes][degree] = node
 
-    # Going to choose the node with largest kb, given k
+    # add
     k2kb = defaultdict(dict)
-    for kb, k2node in kb2k.items():
+    for num_links_to_seed_genes, k2node in num_links_to_seed_genes_to_gene.items():
         min_k = min(k2node.keys())
         node = k2node[min_k]
-        k2kb[min_k][kb] = node
+        k2kb[min_k][num_links_to_seed_genes] = node
 
-    for k, kb2node in k2kb.items():
+    for degree, kb2node in k2kb.items():
         max_kb = max(kb2node.keys())
         node = kb2node[max_kb]
-        reduced_not_in_cluster[node] = (max_kb, k)
+        reduced_not_in_cluster[node] = (max_kb, degree)
 
     return reduced_not_in_cluster
 
@@ -294,8 +297,12 @@ def diamond_iteration_of_first_X_nodes(G, S, X, alpha):
     # ------------------------------------------------------------------
     # Setting initial set of nodes not in cluster
     # ------------------------------------------------------------------
+    # the cluster nodes start out as just the seed genes, we want to find all of the seed gene neighbours
+    # so that we can calculate their p-values
     for node in cluster_nodes:
         not_in_cluster |= neighbors[node]
+
+    # we don't want to keep the seed nodes of course
     not_in_cluster -= cluster_nodes
 
     # ------------------------------------------------------------------
@@ -319,11 +326,17 @@ def diamond_iteration_of_first_X_nodes(G, S, X, alpha):
 
         pmin = 10
         next_node = 'nix'
+
+        # for DiaBLE, I want to make the universe:
+        #   seed genes + candidate genes (=> 1 link to seed genes) + candidate gene neighbours
+        # the nodes to considered to be added to the seeed genes are just the candidate genes + their neighbours
         reduced_not_in_cluster = reduce_not_in_cluster_nodes(all_degrees,
                                                              neighbors, G,
                                                              not_in_cluster,
                                                              cluster_nodes, alpha)
 
+        # go through the entire universe, calculate p-values of each node not already in interesting genes
+        # and finally add the node with the lowest p-value to the set of interesting genes
         for node, kbk in reduced_not_in_cluster.items():
             # Getting the p-value of this kb,k
             # combination and save it in all_p, so computing it only once!
@@ -331,7 +344,7 @@ def diamond_iteration_of_first_X_nodes(G, S, X, alpha):
             try:
                 p = all_p[(k, kb, s0)]
             except KeyError:
-                p = pvalue(kb, k, N, s0, gamma_ln)
+                p = scipy.stats.hypergeom(N, s0, k).pmf(kb)
                 all_p[(k, kb, s0)] = p
 
             # recording the node with smallest p-value
