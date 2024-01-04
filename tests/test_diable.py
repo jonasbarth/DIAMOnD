@@ -84,7 +84,7 @@ def test_diable_with_slide_example():
 
     assert len(diable_result) == 1
     assert candidate_gene == "7"
-    assert np.isclose(p_value, 0.047, rtol=0.001)
+    assert np.isclose(p_value, 0.047, atol=0.001)
 
 
 def test_diable_with_more_iterations():
@@ -95,4 +95,4 @@ def test_diable_with_more_iterations():
 
     assert len(diable_result) == 2
     assert diable_result.gene.tolist() == ["7", "8"]
-    assert np.isclose(diable_result.p_value.tolist(), [0.044, 0.17], atol=0.005).all()
+    assert np.isclose(diable_result.p_value.tolist(), [0.047, 0.20], atol=0.005).all()

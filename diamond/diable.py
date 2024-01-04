@@ -34,6 +34,57 @@ def diamond2(network_file: str, seed_genes_file: str, num_genes_to_add: int):
     return candidate_genes
 
 
+def diable2(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, pd.DataFrame], num_genes_to_add: int, ** kwargs):
+    """Runs the DiaBLE algorithm on the provided network and seed genes.
+
+    The DiaBLE algorithm is an iterative variant of DIAMOnD which considers a growing gene universe instead of
+    always working with the entire network. At each DiaBLE iteration, the entire gene graph consists out of
+
+    - current seed genes
+    - candidate genes (genes with => 1 connection to current seed genes)
+    - candidate gene neighbours
+
+    Like in DIAMOnD, we then calculate the p-value of each gene in the set of candidate genes and their neighbours,
+    adding the gene with the lowest p-value to the set of seed genes.
+
+    Args:
+        network_file (Union[str, pd.DataFrame]): path to the network file or a pandas DataFrame, containing an edge list
+         of nodes.
+        seed_genes_file (Union[str, pd.DataFrame]): path to the seed genes file or a pandas DataFrame, containing a list
+        of seed genes.
+        num_genes_to_add (int): the number of genes to add to the network.
+
+    Return:
+        (pd.DataFrame): a pandas dataframe with all the DiaBLE genes and their p-values.
+    """
+    if type(network_file) is not type(seed_genes_file):
+        raise TypeError(
+            f"Both the network and seed must be of the same type. Network: {type(network_file)}, Seed: {type(seed_genes_file)}.")
+
+    if isinstance(network_file, pd.DataFrame):
+        # ensure that genes are read as strings because when reading from .csv they are read as strings by default
+        network_file.iloc[:, 0] = network_file.iloc[:, 0].astype(str)
+        network_file.iloc[:, 1] = network_file.iloc[:, 1].astype(str)
+
+        G_original = nx.Graph()
+        G_original.add_edges_from(zip(network_file.iloc[:, 0], network_file.iloc[:, 1]))
+
+    if isinstance(seed_genes_file, pd.DataFrame):
+        seed_genes = set(map(str, seed_genes_file.iloc[:, 0]))
+
+    else:
+        G_original, seed_genes = read_input(network_file, seed_genes_file)
+
+    # 1. throwing away the seed genes that are not in the network
+    all_genes_in_network = set(G_original.nodes())
+    seed_genes = set(seed_genes)
+    disease_genes = seed_genes & all_genes_in_network
+
+    if len(disease_genes) != len(seed_genes):
+        print("DIAMOnD(): ignoring %s of %s seed genes that are not in the network" % (
+            len(seed_genes - all_genes_in_network), len(seed_genes)))
+
+
 def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, pd.DataFrame], num_genes_to_add: int, **kwargs):
     """Runs the DiaBLE algorithm on the provided network and seed genes.
 
@@ -193,7 +244,7 @@ def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
     for node in not_in_cluster:
         degree = nx.degree(universe, node)
         num_links_to_seed_genes = len(set(nx.neighbors(universe, node)) & set(seed_genes))
-        p = scipy.stats.hypergeom(size_universe, s0, degree).pmf(num_links_to_seed_genes)
+        p = 1 - scipy.stats.hypergeom(size_universe, s0, degree).cdf(num_links_to_seed_genes - 1)
 
         info.append([node, degree, num_links_to_seed_genes, p])
 
