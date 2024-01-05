@@ -105,8 +105,11 @@ def test_diamond_interation():
     network.add_edges_from(zip(network_df.iloc[:, 0], network_df.iloc[:, 1]))
     seed_file = "slide_graph_seed_genes.txt"
     seed_genes = pd.read_csv(seed_file, header=None).iloc[:, 0]
+    candidate_genes = network.nodes() - seed_genes
+    neighbours = {node: set(nx.neighbors(network, node)) for node in network}
+    degrees = {node: nx.degree(network, node) for node in network}
 
-    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(network, seed_genes)
+    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(candidate_genes, seed_genes, neighbours, degrees)
 
     assert str(int(gene)) == "8"
     assert degree == 12
@@ -121,10 +124,17 @@ def test_two_diamond_interation():
     network.add_edges_from(zip(network_df.iloc[:, 0], network_df.iloc[:, 1]))
     seed_file = "slide_graph_seed_genes.txt"
     seed_genes = pd.read_csv(seed_file, header=None).iloc[:, 0].tolist()
+    candidate_genes = network.nodes() - seed_genes
+    neighbours = {node: set(nx.neighbors(network, node)) for node in network}
+    degrees = {node: nx.degree(network, node) for node in network}
 
-    gene, *_ = diamond_iteration(network, seed_genes)
+    gene, *_ = diamond_iteration(candidate_genes, seed_genes, neighbours, degrees)
     seed_genes.append(str(int(gene)))
-    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(network, seed_genes)
+    candidate_genes |= neighbours[gene]
+    for node in candidate_genes.copy():
+        candidate_genes |= neighbours[node]
+    candidate_genes -= set(seed_genes)
+    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(candidate_genes, seed_genes, neighbours, degrees)
 
     assert str(int(gene)) == "7"
     assert degree == 5

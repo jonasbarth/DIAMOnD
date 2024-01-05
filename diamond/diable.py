@@ -1,5 +1,5 @@
 """Module containing code for the DIAMOnD Background Local Expansion (DiaBLE) algorithm."""
-from typing import Sequence, Union
+from typing import Sequence, Union, Dict, Iterable
 
 import networkx as nx
 import pandas as pd
@@ -134,16 +134,35 @@ def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, p
         print("DIAMOnD(): ignoring %s of %s seed genes that are not in the network" % (
             len(seed_genes - all_genes_in_network), len(seed_genes)))
 
-    universe = create_diable_universe(G_original, disease_genes)
+    neighbours = {node: set(nx.neighbors(G_original, node)) for node in G_original}
+    degrees = {node: nx.degree(G_original, node) for node in G_original}
+
+    candidate_genes = set()
+    for node in disease_genes:
+        candidate_genes |= set(neighbours[node])
+
+    candidate_genes -= disease_genes
+
+    candidate_neighbours = set()
+    for node in candidate_genes:
+        candidate_neighbours |= neighbours[node]
+
+    candidate_neighbours -= disease_genes
+    candidate_genes |= candidate_neighbours
 
     added_genes = []
     for _ in tqdm(range(num_genes_to_add), disable=not kwargs.get("verbose", False)):
-        new_gene, *_, p_value = diamond_iteration(universe, disease_genes)
+        new_gene, *_, p_value = diamond_iteration(candidate_genes, disease_genes, neighbours, degrees)
 
-        disease_genes.add(new_gene)
         added_genes.append([new_gene, p_value])
 
-        universe = create_diable_universe(G_original, disease_genes)
+        disease_genes.add(new_gene)
+        new_candidates = neighbours[new_gene]
+
+        for node in new_candidates.copy():
+            new_candidates |= neighbours[node]
+        candidate_genes |= new_candidates
+        candidate_genes -= disease_genes
 
     added_genes = pd.DataFrame(added_genes, columns=['gene', "p_value"])
     added_genes.gene = added_genes.gene.astype(str)
@@ -199,7 +218,7 @@ def create_diable_universe(network: nx.Graph, seed_genes: Sequence[int]):
                             list(seed_neighbours_neighbours))
 
 
-def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
+def diamond_iteration(candidate_genes: Iterable, seed_genes: Sequence[int], neighbours: Dict, degrees: Dict, alpha=1):
     """Runs a single iteration of the DIAMOnD algorithm.
 
     In the DIAMOnD algorithm, we aim to find genes likely responsible for a disease. A gene that might be connected is
@@ -218,7 +237,7 @@ def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
         node, degree, num_links_to_seed_genes, p_value (str, int, int, float): the candidate node with the lowest p-value,
         its degree, number of links to seed genes, and p-value.
     """
-    size_universe = universe.number_of_nodes()
+    size_universe = len(candidate_genes) + len(seed_genes)
 
     # ------------------------------------------------------------------
     # Setting up initial set of nodes in cluster
@@ -234,16 +253,11 @@ def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
     # ------------------------------------------------------------------
     gamma_ln = compute_all_gamma_ln(size_universe + 1)
 
-    # ------------------------------------------------------------------
-    # Setting initial set of nodes not in cluster
-    # ------------------------------------------------------------------
-    not_in_cluster = universe.subgraph(universe.nodes() - cluster_nodes)
-
     info = []
 
-    for node in not_in_cluster:
-        degree = nx.degree(universe, node)
-        num_links_to_seed_genes = len(set(nx.neighbors(universe, node)) & set(seed_genes))
+    for node in candidate_genes:
+        degree = degrees[node]
+        num_links_to_seed_genes = len(set(neighbours[node]) & set(seed_genes))
 
         if num_links_to_seed_genes == 0:
             p = 1.0
