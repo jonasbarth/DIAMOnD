@@ -4,7 +4,7 @@ from typing import Sequence, Union
 import networkx as nx
 import pandas as pd
 from tqdm import tqdm
-import scipy
+from scipy.stats import hypergeom
 
 from .DIAMOnD import read_input, compute_all_gamma_ln, \
     pvalue
@@ -248,7 +248,7 @@ def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
         if num_links_to_seed_genes == 0:
             p = 1.0
         else:
-            p = 1 - scipy.stats.hypergeom(size_universe, s0, degree).cdf(num_links_to_seed_genes - 1)
+            p = 1 - hypergeom.cdf(num_links_to_seed_genes - 1, size_universe, s0, degree)
 
         info.append([node, degree, num_links_to_seed_genes, p])
 
