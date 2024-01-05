@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from diamond.diable import find_nodes_with_links_to, create_diable_universe, diable
+from diamond.diable import find_nodes_with_links_to, create_diable_universe, diable, diamond_iteration
 
 
 def test_that_find_nodes_with_links_to_single_node():
@@ -96,3 +96,37 @@ def test_diable_with_more_iterations():
     assert len(diable_result) == 2
     assert diable_result.gene.tolist() == ["7", "8"]
     assert np.isclose(diable_result.p_value.tolist(), [0.047, 0.20], atol=0.005).all()
+
+
+def test_diamond_interation():
+    network_file = "slide_graph_universe.txt"
+    network_df = pd.read_csv(network_file, header=None)
+    network = nx.Graph()
+    network.add_edges_from(zip(network_df.iloc[:, 0], network_df.iloc[:, 1]))
+    seed_file = "slide_graph_seed_genes.txt"
+    seed_genes = pd.read_csv(seed_file, header=None).iloc[:, 0]
+
+    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(network, seed_genes)
+
+    assert str(int(gene)) == "8"
+    assert degree == 12
+    assert num_links_to_seed_genes == 6
+    assert np.isclose(p_value, 0.0025, atol=0.001)
+
+
+def test_two_diamond_interation():
+    network_file = "slide_graph_universe.txt"
+    network_df = pd.read_csv(network_file, header=None)
+    network = nx.Graph()
+    network.add_edges_from(zip(network_df.iloc[:, 0], network_df.iloc[:, 1]))
+    seed_file = "slide_graph_seed_genes.txt"
+    seed_genes = pd.read_csv(seed_file, header=None).iloc[:, 0].tolist()
+
+    gene, *_ = diamond_iteration(network, seed_genes)
+    seed_genes.append(str(int(gene)))
+    gene, degree, num_links_to_seed_genes, p_value = diamond_iteration(network, seed_genes)
+
+    assert str(int(gene)) == "7"
+    assert degree == 5
+    assert num_links_to_seed_genes == 4
+    assert np.isclose(p_value, 0.0076, atol=0.001)

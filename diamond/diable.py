@@ -189,14 +189,14 @@ def create_diable_universe(network: nx.Graph, seed_genes: Sequence[int]):
     G_universe = network.subgraph(seed_genes)
 
     # find the neighbours of the disease genes
-    seed_neighbours = network.subgraph(find_nodes_with_links_to(network, seed_genes))
+    seed_neighbours = find_nodes_with_links_to(network, seed_genes)
 
     # find the neighbours of the neighbours of the disease genes
-    seed_neighbours_neighbours = network.subgraph(find_nodes_with_links_to(network, seed_neighbours.nodes()))
+    seed_neighbours_neighbours = find_nodes_with_links_to(network, seed_neighbours)
 
     return network.subgraph(list(G_universe.nodes()) +
-                            list(seed_neighbours.nodes()) +
-                            list(seed_neighbours_neighbours.nodes()))
+                            list(seed_neighbours) +
+                            list(seed_neighbours_neighbours))
 
 
 def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
@@ -244,7 +244,11 @@ def diamond_iteration(universe: nx.Graph, seed_genes: Sequence[int], alpha=1):
     for node in not_in_cluster:
         degree = nx.degree(universe, node)
         num_links_to_seed_genes = len(set(nx.neighbors(universe, node)) & set(seed_genes))
-        p = 1 - scipy.stats.hypergeom(size_universe, s0, degree).cdf(num_links_to_seed_genes - 1)
+
+        if num_links_to_seed_genes == 0:
+            p = 1.0
+        else:
+            p = 1 - scipy.stats.hypergeom(size_universe, s0, degree).cdf(num_links_to_seed_genes - 1)
 
         info.append([node, degree, num_links_to_seed_genes, p])
 
