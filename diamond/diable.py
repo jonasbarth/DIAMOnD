@@ -139,16 +139,7 @@ def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, p
 
     candidate_genes = set()
     for node in disease_genes:
-        candidate_genes |= set(neighbours[node])
-
-    candidate_genes -= disease_genes
-
-    candidate_neighbours = set()
-    for node in candidate_genes:
-        candidate_neighbours |= neighbours[node]
-
-    candidate_neighbours -= disease_genes
-    candidate_genes |= candidate_neighbours
+        candidate_genes |= find_candidate_nodes(node, disease_genes, neighbours)
 
     added_genes = []
     for _ in tqdm(range(num_genes_to_add), disable=not kwargs.get("verbose", False)):
@@ -157,17 +148,35 @@ def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, p
         added_genes.append([new_gene, p_value])
 
         disease_genes.add(new_gene)
-        new_candidates = neighbours[new_gene]
-
-        for node in new_candidates.copy():
-            new_candidates |= neighbours[node]
-        candidate_genes |= new_candidates
-        candidate_genes -= disease_genes
+        candidate_genes.remove(new_gene)
+        candidate_genes |= find_candidate_nodes(new_gene, disease_genes, neighbours)
 
     added_genes = pd.DataFrame(added_genes, columns=['gene', "p_value"])
     added_genes.gene = added_genes.gene.astype(str)
 
     return added_genes
+
+
+def find_candidate_nodes(gene: str, disease_genes: set, neighbours: dict):
+    """Finds the candidate nodes related to the given gene.
+
+    The candidate nodes are the neighbours of the given gene and the neighbours of the neighbours.
+
+    Args:
+        gene (str): The gene for which to find the candidate nodes.
+        disease_genes (set): The disease genes.
+        neighbours (dict): Map for all genes to their neighbours.
+
+    Returns:
+        set: The new candidate nodes.
+    """
+    candidate_nodes = neighbours[gene] - disease_genes
+    for node in candidate_nodes.copy():
+        candidate_nodes |= neighbours[node]
+
+    candidate_nodes -= disease_genes
+
+    return candidate_nodes
 
 
 def find_nodes_with_links_to(graph: nx.Graph, nodes: Sequence[int]):
@@ -247,11 +256,6 @@ def diamond_iteration(candidate_genes: Iterable, seed_genes: Sequence[int], neig
 
     s0 += (alpha - 1) * s0
     size_universe += (alpha - 1) * s0
-
-    # ------------------------------------------------------------------
-    # precompute the logarithmic gamma functions
-    # ------------------------------------------------------------------
-    gamma_ln = compute_all_gamma_ln(size_universe + 1)
 
     info = []
 

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from diamond.diable import find_nodes_with_links_to, create_diable_universe, diable, diamond_iteration
+from diamond.diable import find_nodes_with_links_to, create_diable_universe, diable, diamond_iteration, find_candidate_nodes
 
 
 def test_that_find_nodes_with_links_to_single_node():
@@ -140,3 +140,18 @@ def test_two_diamond_interation():
     assert degree == 5
     assert num_links_to_seed_genes == 4
     assert np.isclose(p_value, 0.0076, atol=0.001)
+
+
+def test_that_find_candidate_genes():
+    network_file = "slide_graph_universe.txt"
+    network_df = pd.read_csv(network_file, header=None, dtype=str)
+    network = nx.Graph()
+    network.add_edges_from(zip(network_df.iloc[:, 0], network_df.iloc[:, 1]))
+    seed_file = "slide_graph_seed_genes.txt"
+    seed_genes = set(pd.read_csv(seed_file, header=None, dtype=str).iloc[:, 0].tolist())
+    seed_genes.add("7")
+    neighbours = {node: set(nx.neighbors(network, node)) for node in network}
+
+    candidate_nodes = find_candidate_nodes("7", seed_genes, neighbours)
+
+    assert candidate_nodes == {"9", "17", "18", "16"}
