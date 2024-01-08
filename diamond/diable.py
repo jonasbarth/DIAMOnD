@@ -142,7 +142,7 @@ def diable(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, p
         candidate_genes |= find_candidate_nodes(node, disease_genes, neighbours)
 
     added_genes = []
-    for _ in tqdm(range(num_genes_to_add), disable=not kwargs.get("verbose", False)):
+    for _ in range(num_genes_to_add):
         new_gene, *_, p_value = diamond_iteration(candidate_genes, disease_genes, neighbours, degrees)
 
         added_genes.append([new_gene, p_value])
