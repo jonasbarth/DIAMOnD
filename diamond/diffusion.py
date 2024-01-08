@@ -57,6 +57,7 @@ def diffusion(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str
         diffusion_network = _add_diffusion_result_to_network(cx_network, diffusion_response)
         diffusion_df = _create_diffusion_result_df(diffusion_network)
         diffusion_df.sort_values("rank", inplace=True)
+        diffusion_df.gene = diffusion_df.gene.astype(str)
 
         return diffusion_df.head(num_genes_to_add)[["gene", "heat"]]
     raise Exception(f"Error when running diffusion algorithm: {diffusion_response.content}")
