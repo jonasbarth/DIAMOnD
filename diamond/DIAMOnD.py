@@ -441,12 +441,7 @@ def diamond(*args):
 
     if isinstance(network_edgelist_file, pd.DataFrame):
         if isinstance(seeds_file, pd.DataFrame):
-            G_original = nx.Graph()
-            for i, row in network_edgelist_file.iterrows():
-                node1 = row['gene1']
-                node2 = row['gene2']
-                G_original.add_edge(node1, node2)
-
+            G_original = nx.from_pandas_edgelist(network_edgelist_file, source=0, target=1)
             # read the seed genes:
             seed_genes = set(seeds_file['gene'])
 
