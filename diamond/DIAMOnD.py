@@ -443,7 +443,7 @@ def diamond(*args):
         if isinstance(seeds_file, pd.DataFrame):
             G_original = nx.from_pandas_edgelist(network_edgelist_file, source=0, target=1)
             # read the seed genes:
-            seed_genes = set(seeds_file['gene'])
+            seed_genes = set(seeds_file.iloc[:, 0])
 
 
     else:
