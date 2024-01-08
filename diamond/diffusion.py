@@ -48,19 +48,20 @@ def diffusion(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str
 
     cx_network = ndex2.create_nice_cx_from_networkx(G_original)
 
-    for node_id, _ in cx_network.get_nodes():
-        if node_id in seed_genes:
+    for node_id, node in cx_network.get_nodes():
+        if node["n"] in seed_genes:
             cx_network.set_node_attribute(type='double', node=node_id, attribute_name='diffusion_input', values='1.0')
 
     diffusion_response = _call_diffusion_service(cx_network, kwargs.get("time", 0.01))
-    diffusion_network = _add_diffusion_result_to_network(cx_network, diffusion_response)
-    diffusion_df = _create_diffusion_result_df(diffusion_network)
-    diffusion_df.sort_values("rank", inplace=True)
+    if diffusion_response.ok:
+        diffusion_network = _add_diffusion_result_to_network(cx_network, diffusion_response)
+        diffusion_df = _create_diffusion_result_df(diffusion_network)
+        diffusion_df.sort_values("rank", inplace=True)
 
-    return diffusion_df.head(num_genes_to_add)[["gene", "heat"]]
+        return diffusion_df.head(num_genes_to_add)[["gene", "heat"]]
+    raise Exception(f"Error when running diffusion algorithm: {diffusion_response.content}")
 
-
-def _call_diffusion_service(cx_network: ndex2.Network, time: float):
+def _call_diffusion_service(cx_network: ndex2.NiceCXNetwork, time: float):
     """Calls the cytoscape diffusion service.
 
     The cytoscape diffusion service is a webservice offered by cytoscape that runs the diffusion algorithm.
@@ -78,7 +79,7 @@ def _call_diffusion_service(cx_network: ndex2.Network, time: float):
     return response
 
 
-def _add_diffusion_result_to_network(network: ndex2.Network, response: requests.Response):
+def _add_diffusion_result_to_network(network: ndex2.NiceCXNetwork, response: requests.Response):
     """Adds the diffusion HTTP response to the network.
 
     The diffusion HTTP response contains ranks and heat values for nodes. These will be assigned to an existing CX
@@ -101,7 +102,7 @@ def _add_diffusion_result_to_network(network: ndex2.Network, response: requests.
     return network
 
 
-def _create_diffusion_result_df(network: ndex2.Network):
+def _create_diffusion_result_df(network: ndex2.NiceCXNetwork):
     """Creates pandas dataframe of the diffusion result network.
 
     The dataframe will contain:
@@ -117,6 +118,6 @@ def _create_diffusion_result_df(network: ndex2.Network):
 
         diffusion_nodes.append([int(rank), node_id, float(heat)])
 
-    diffusion_pred = pd.DataFrame(diffusion_nodes, columns=["rank", "gene", "diffusion_value"])
+    diffusion_pred = pd.DataFrame(diffusion_nodes, columns=["rank", "gene", "heat"])
 
     return diffusion_pred
