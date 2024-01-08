@@ -8,7 +8,7 @@ setup(
                       'scipy',
                       'pandas',
                       'tqdm',
-                      'ndex2'
+                      'ndex2',
                       'networkx'],
     entry_points={
             'console_scripts': [
