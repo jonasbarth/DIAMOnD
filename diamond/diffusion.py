@@ -1,12 +1,12 @@
 """Contains code for cytoscapes diffusion algorithm."""
 from typing import Union
+
 import ndex2
 import networkx as nx
 import pandas as pd
 import requests
-import pandas as pd
 
-from diamond.DIaBLE import read_input
+from .diable import read_input
 
 
 def diffusion(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str, pd.DataFrame], num_genes_to_add: int,
