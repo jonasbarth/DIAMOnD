@@ -57,7 +57,7 @@ def diffusion(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str
     diffusion_df = _create_diffusion_result_df(diffusion_network)
     diffusion_df.sort_values("rank", inplace=True)
 
-    return diffusion_df[["gene", "heat"]]
+    return diffusion_df.head(num_genes_to_add)[["gene", "heat"]]
 
 
 def _call_diffusion_service(cx_network: ndex2.Network, time: float):
