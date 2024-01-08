@@ -344,7 +344,7 @@ def diamond_iteration_of_first_X_nodes(G, S, X, alpha):
             try:
                 p = all_p[(k, kb, s0)]
             except KeyError:
-                p = 1 - scipy.stats.hypergeom.cdf(kb - 1, N, s0, k)
+                p = pvalue(kb, k, N, s0, gamma_ln)
                 all_p[(k, kb, s0)] = p
 
             # recording the node with smallest p-value
@@ -462,7 +462,7 @@ def diamond(*args):
                           outfile=outfile_name)
 
     print("\n results have been saved to '%s' \n" % outfile_name)
-    return pd.DataFrame(added_nodes, columns=["gene", "degree", "num_links_to_seed_genes", "p_value"])
+    return pd.DataFrame(added_nodes, columns=["gene", "degree", "num_links_to_seed_genes", "p_value"]).sort_values("p_value")
 
 
 # ===========================================================================
