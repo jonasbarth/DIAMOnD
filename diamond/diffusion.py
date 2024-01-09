@@ -117,7 +117,7 @@ def _create_diffusion_result_df(network: ndex2.NiceCXNetwork):
         rank = network.get_node_attribute_value(node_id, 'diffusion_output_rank')
         heat = network.get_node_attribute_value(node_id, 'diffusion_output_heat')
 
-        diffusion_nodes.append([int(rank), node_id, float(heat)])
+        diffusion_nodes.append([int(rank), node["n"], float(heat)])
 
     diffusion_pred = pd.DataFrame(diffusion_nodes, columns=["rank", "gene", "heat"])
 
