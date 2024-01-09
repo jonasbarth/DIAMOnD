@@ -56,11 +56,13 @@ def diffusion(network_file: Union[str, pd.DataFrame], seed_genes_file: Union[str
     if diffusion_response.ok:
         diffusion_network = _add_diffusion_result_to_network(cx_network, diffusion_response)
         diffusion_df = _create_diffusion_result_df(diffusion_network)
+        diffusion_df = diffusion_df[~diffusion_df.gene.isin(seed_genes)]
         diffusion_df.sort_values("rank", inplace=True)
         diffusion_df.gene = diffusion_df.gene.astype(str)
 
         return diffusion_df.head(num_genes_to_add)[["gene", "heat"]]
     raise Exception(f"Error when running diffusion algorithm: {diffusion_response.content}")
+
 
 def _call_diffusion_service(cx_network: ndex2.NiceCXNetwork, time: float):
     """Calls the cytoscape diffusion service.
