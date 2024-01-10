@@ -1,3 +1,8 @@
+# Installation
+```
+pip install git+https://github.com/jonasbarth/DIAMOnD
+```
+
 # DIAMOnD
 
 DIAMOnD.py runs the DIAMOnD algorithm as described in
@@ -26,4 +31,17 @@ contains two input files:
 The following command will generate the first 100 DIAMOnD nodes and save them in a file) </br>
 <em><pre>python3  DIAMOnD.py  Example/PPI.txt  Example/seed_genes.txt  100</pre></em>
 
+# DiaBLE
+```
+from diamond import diable
 
+diable("<your network file>", "<your seed genes file>", <number of genes to predict>)
+```
+
+# Diffusion
+This runs the cytoscape diffusion algorithm. Default time value is `time=0.01`. It will return a pandas dataframe with columns `gene, heat`, sorted in descending order of the `heat` column. 
+```
+from diamond import diffusion
+
+diffusion("<your network file>", "<your seed genes file>", <number of genes to predict>, time=<time>)
+```
